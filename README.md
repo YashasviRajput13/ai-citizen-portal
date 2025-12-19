@@ -3,9 +3,10 @@
 
 ![AI Citizen Services Portal Demo](assets/demo.png)
 
-An **AI-powered citizen services web platform** that helps users understand government services, forms, and procedures using **conversational AI**.
+An **AI-powered citizen services web platform**![Uploading Screenshot 2025-12-19 185300.png…]()
+ that helps users understand government services, forms, and procedures using **conversational AI**.
 
-Inspired by **Estonia’s e-Governance model**, this project demonstrates how **Gemini** can act as an intelligent digital assistant for public services.
+Inspired by Estonia’s e-Governance model, this project demonstrates how **Gemini** can act as an intelligent digital assistant for public services.
 
 ---
 
