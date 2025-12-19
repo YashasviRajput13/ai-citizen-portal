@@ -80,8 +80,7 @@ Google Gemini API
 
 ## 1️⃣ Clone Repository
 ```bash
-git clone https://github.com/your-username/ai-citizen-services-portal.git
-cd ai-citizen-services-portal
+git clone: https://github.com/YashasviRajput13/ai-citizen-portal.git
 ```
 
 2️⃣ Backend Setup
