@@ -15,14 +15,96 @@ const AdminDashboard: React.FC = () => {
     setIsProcessing(id);
     try {
       const classification = await classifyQuery(subject);
-      setRequests(prev => prev.map(req => 
-        req.id === id ? { ...req, classification, status: 'Processed' } : req
-      ));
+      
+      let shouldProcess = true;
+      // If the AI identifies a high priority or specific concerning reason, we prompt the admin
+      if (classification.priority === 'High') {
+        shouldProcess = window.confirm(
+          `CRITICAL ALERT: ${classification.urgencyReason}\n\nThis request has been flagged as HIGH PRIORITY. Would you like to mark it as processed and notify the emergency response team?`
+        );
+      }
+
+      if (shouldProcess) {
+        setRequests(prev => prev.map(req => 
+          req.id === id ? { ...req, classification, status: 'Processed' } : req
+        ));
+      } else {
+        // Still save the classification so the admin can see it, but keep status as Pending
+        setRequests(prev => prev.map(req => 
+          req.id === id ? { ...req, classification, status: 'Pending' } : req
+        ));
+      }
     } catch (error) {
-      console.error(error);
+      console.error('Classification error:', error);
+      alert('Failed to classify request. Please check your API key or connection.');
     } finally {
       setIsProcessing(null);
     }
+  };
+
+  const handlePrint = (req: ServiceRequest) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const classificationHtml = req.classification ? `
+      <div class="section">
+        <h2>AI Classification Result</h2>
+        <div class="grid">
+          <div><strong>Category:</strong> ${req.classification.category}</div>
+          <div><strong>Department:</strong> ${req.classification.department}</div>
+          <div><strong>Priority:</strong> <span class="priority-${req.classification.priority.toLowerCase()}">${req.classification.priority}</span></div>
+        </div>
+        <p><strong>Urgency Analysis:</strong> ${req.classification.urgencyReason}</p>
+      </div>
+    ` : '<p><em>No AI classification performed yet.</em></p>';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>CivicAI - Request #${req.id}</title>
+          <style>
+            body { font-family: 'Inter', -apple-system, sans-serif; line-height: 1.5; color: #1e293b; padding: 40px; }
+            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+            .logo { font-weight: 800; color: #4f46e5; font-size: 24px; }
+            h1 { font-size: 20px; color: #0f172a; margin: 0; }
+            h2 { font-size: 16px; color: #475569; margin-top: 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+            .section { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+            .priority-high { color: #dc2626; font-weight: 700; }
+            .priority-medium { color: #d97706; font-weight: 700; }
+            .priority-low { color: #16a34a; font-weight: 700; }
+            .footer { margin-top: 50px; font-size: 12px; color: #94a3b8; text-align: center; }
+            @media print { button { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">CivicAI</div>
+            <div>Official Citizen Request Summary</div>
+          </div>
+          
+          <div class="section">
+            <h2>General Information</h2>
+            <div class="grid">
+              <div><strong>Request ID:</strong> #${req.id}</div>
+              <div><strong>Status:</strong> ${req.status}</div>
+              <div><strong>Received:</strong> ${req.createdAt.toLocaleString()}</div>
+            </div>
+            <p><strong>Subject:</strong><br/>${req.subject}</p>
+          </div>
+
+          ${classificationHtml}
+
+          <div class="footer">
+            Digital Governance Framework • Digital Services Emulator
+          </div>
+          <script>
+            window.onload = () => { window.print(); window.close(); };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const getPriorityColor = (priority: string | undefined) => {
@@ -88,20 +170,37 @@ const AdminDashboard: React.FC = () => {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {req.status === 'Pending' ? (
+                    <div className="flex items-center justify-end space-x-2">
                       <button
-                        onClick={() => handleClassify(req.id, req.subject)}
-                        disabled={isProcessing === req.id}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        onClick={() => handlePrint(req)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        title="Print Service Details"
                       >
-                        {isProcessing === req.id ? 'Processing...' : 'Run Smart Sort'}
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
                       </button>
-                    ) : (
-                      <span className="text-xs font-bold text-green-600 flex items-center justify-end">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                        Sorted
-                      </span>
-                    )}
+
+                      {req.status === 'Pending' ? (
+                        <button
+                          onClick={() => handleClassify(req.id, req.subject)}
+                          disabled={isProcessing === req.id}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center"
+                        >
+                          {isProcessing === req.id ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                              Sorting...
+                            </>
+                          ) : 'Run Smart Sort'}
+                        </button>
+                      ) : (
+                        <span className="text-xs font-bold text-green-600 flex items-center justify-end">
+                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                          Processed
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

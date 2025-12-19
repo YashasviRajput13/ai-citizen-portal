@@ -23,6 +23,14 @@ export interface FormAnalysis {
   simplifiedExplanation: string;
 }
 
+export interface ServiceDetailInfo {
+  summary: string;
+  features: string[];
+  steps: string[];
+  aiInsight: string;
+  processingTime: string;
+}
+
 export interface ServiceRequest {
   id: string;
   subject: string;

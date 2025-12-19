@@ -5,10 +5,21 @@ import Home from './components/Home';
 import ChatInterface from './components/ChatInterface';
 import FormAnalyzer from './components/FormAnalyzer';
 import AdminDashboard from './components/AdminDashboard';
+import Login from './components/Login';
 import { Tab } from './types';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<Tab>('home');
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setActiveTab('home');
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -30,29 +41,45 @@ const App: React.FC = () => {
     }
   };
 
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex animate-in fade-in duration-700">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
-      <main className="flex-1 ml-64 p-8">
-        <header className="flex justify-between items-center mb-8">
+      <main className="flex-1 ml-72">
+        <header className="px-10 py-8 flex justify-between items-center sticky top-0 bg-slate-50/80 backdrop-blur-xl z-40">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{getPageTitle()}</h1>
-            <p className="text-sm text-slate-500 font-medium">Republic of Estonia Digital Services Emulator</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-            </button>
-            <div className="h-8 w-px bg-slate-200"></div>
-            <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
-                <span className="w-6 h-6 bg-green-100 text-green-700 text-[10px] font-bold flex items-center justify-center rounded-full">ID</span>
-                <span className="text-sm font-bold text-slate-700">Digital Residency</span>
+            <div className="flex items-center space-x-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">
+               <span className="text-indigo-500">Official</span>
+               <span>•</span>
+               <span>Encrypted Session</span>
             </div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{getPageTitle()}</h1>
+          </div>
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3 bg-white px-5 py-2.5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow">
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                  ID
+                </div>
+                <div>
+                  <p className="text-xs font-black text-slate-800 leading-none">Peterson, Sven</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">EST-RES-88410</p>
+                </div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 rounded-2xl transition-all shadow-sm group"
+              title="Logout"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
           </div>
         </header>
 
-        <div className="max-w-6xl mx-auto">
+        <div className="px-10 max-w-7xl mx-auto">
           {renderContent()}
         </div>
       </main>
