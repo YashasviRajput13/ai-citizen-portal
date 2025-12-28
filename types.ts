@@ -1,5 +1,5 @@
 
-export type Tab = 'home' | 'assistant' | 'explainer' | 'admin';
+export type Tab = 'home' | 'assistant' | 'explainer' | 'admin' | 'formFiller';
 
 export interface Message {
   id: string;
@@ -29,6 +29,15 @@ export interface ServiceDetailInfo {
   steps: string[];
   aiInsight: string;
   processingTime: string;
+  checklist: string[];
+}
+
+export interface RejectionPrediction {
+  approvalProbability: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
+  redFlags: string[];
+  mitigationSteps: string[];
+  aiAnalystNote: string;
 }
 
 export interface ServiceRequest {
@@ -37,4 +46,14 @@ export interface ServiceRequest {
   classification?: ClassificationResult;
   status: 'Pending' | 'Processed';
   createdAt: Date;
+}
+
+export interface GenericFormDraft {
+  formSubject: string;
+  applicationType: string;
+  fullName: string;
+  fatherName: string;
+  dateOfBirth: string;
+  address: string;
+  aiVerificationNote: string;
 }

@@ -1,22 +1,37 @@
 
-import React, { useState } from 'react';
-import { Tab, ServiceDetailInfo } from '../types';
-import { fetchServiceInfo } from '../services/geminiService';
+import React, { useState, useEffect } from 'react';
+import { Tab, ServiceDetailInfo, RejectionPrediction } from '../types';
+import { fetchServiceInfo, predictRejectionRisk } from '../services/geminiService';
+import { translations } from '../translations';
 
 interface HomeProps {
   setActiveTab: (tab: Tab) => void;
+  language: string;
 }
 
-const Home: React.FC<HomeProps> = ({ setActiveTab }) => {
+const Home: React.FC<HomeProps> = ({ setActiveTab, language }) => {
   const [selectedService, setSelectedService] = useState<any | null>(null);
   const [serviceDetails, setServiceDetails] = useState<ServiceDetailInfo | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [completedChecklist, setCompletedChecklist] = useState<Record<number, boolean>>({});
+  
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [prediction, setPrediction] = useState<RejectionPrediction | null>(null);
+
+  const t = translations[language];
 
   const categories = [
     { title: 'Family & Benefits', icon: '👨‍👩‍👧', count: 12, color: 'bg-blue-50 text-blue-600', description: 'Manage birth registrations, child allowances, and family support systems.' },
     { title: 'Business & Tax', icon: '💼', count: 8, color: 'bg-indigo-50 text-indigo-600', description: 'Register companies, declare taxes, and apply for digital entrepreneurship permits.' },
     { title: 'Immigration', icon: '🌍', count: 15, color: 'bg-emerald-50 text-emerald-600', description: 'E-Residency applications, visa extensions, and residency permits.' },
     { title: 'Justice & ID', icon: '🆔', count: 4, color: 'bg-slate-50 text-slate-600', description: 'ID card renewals, digital signatures, and legal documentation access.' },
+  ];
+
+  const govMetrics = [
+    { label: "Digital Services", value: "99%", trend: "stable" },
+    { label: "Paper Saved (tons)", value: "1,240", trend: "+12%" },
+    { label: "Identity Verified", value: "1.3M", trend: "+5%" },
+    { label: "AI Routing Speed", value: "0.4s", trend: "-10%" }
   ];
 
   const recentUpdates = [
@@ -29,8 +44,10 @@ const Home: React.FC<HomeProps> = ({ setActiveTab }) => {
     setSelectedService(category);
     setIsLoadingDetails(true);
     setServiceDetails(null);
+    setCompletedChecklist({});
+    setPrediction(null);
     try {
-      const info = await fetchServiceInfo(category.title);
+      const info = await fetchServiceInfo(category.title, language);
       setServiceDetails(info);
     } catch (error) {
       console.error("Failed to load service details", error);
@@ -39,10 +56,35 @@ const Home: React.FC<HomeProps> = ({ setActiveTab }) => {
     }
   };
 
+  const handlePredictRisk = async () => {
+    if (!selectedService || !serviceDetails) return;
+    setIsPredicting(true);
+    try {
+      const result = await predictRejectionRisk(selectedService.title, serviceDetails.summary, language);
+      setPrediction(result);
+    } catch (error) {
+      console.error("Prediction failed", error);
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  const toggleChecklist = (index: number) => {
+    setCompletedChecklist(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
   const closeDetail = () => {
     setSelectedService(null);
     setServiceDetails(null);
+    setPrediction(null);
   };
+
+  const checklistProgress = serviceDetails?.checklist 
+    ? (Object.values(completedChecklist).filter(Boolean).length / serviceDetails.checklist.length) * 100 
+    : 0;
 
   if (selectedService) {
     return (
@@ -64,114 +106,161 @@ const Home: React.FC<HomeProps> = ({ setActiveTab }) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-8">
               {isLoadingDetails ? (
                 <div className="space-y-4 py-8">
                   <div className="h-6 bg-slate-100 rounded-full w-1/3 animate-pulse"></div>
                   <div className="space-y-2">
                     <div className="h-4 bg-slate-50 rounded-full w-full animate-pulse"></div>
                     <div className="h-4 bg-slate-50 rounded-full w-5/6 animate-pulse"></div>
-                    <div className="h-4 bg-slate-50 rounded-full w-4/6 animate-pulse"></div>
-                  </div>
-                  <div className="pt-8 grid grid-cols-2 gap-4">
-                     <div className="h-32 bg-slate-50 rounded-2xl animate-pulse"></div>
-                     <div className="h-32 bg-slate-50 rounded-2xl animate-pulse"></div>
                   </div>
                 </div>
               ) : serviceDetails ? (
                 <>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Service Summary</h3>
+                    <div className="flex justify-between items-center mb-3">
+                       <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Summary</h3>
+                       <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded">Flash AI Model Active</span>
+                    </div>
                     <p className="text-slate-700 text-lg leading-relaxed">{serviceDetails.summary}</p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Core Features</h3>
-                      <ul className="space-y-3">
-                        {serviceDetails.features.map((f, i) => (
-                          <li key={i} className="flex items-start space-x-3 text-slate-600">
-                             <svg className="w-5 h-5 text-indigo-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                             <span className="text-sm">{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Application Process</h3>
-                      <div className="space-y-4">
-                        {serviceDetails.steps.map((s, i) => (
-                          <div key={i} className="flex items-center space-x-3">
-                             <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-black">{i + 1}</div>
-                             <span className="text-sm text-slate-700 font-medium">{s}</span>
-                          </div>
-                        ))}
+                  <div className="bg-slate-50 rounded-3xl border border-slate-100 p-6 space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">{t.checklist}</h3>
                       </div>
+                      <span className="text-[10px] font-black text-indigo-600 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
+                        {Math.round(checklistProgress)}% {t.ready}
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-slate-200 rounded-full h-1.5 mb-6 overflow-hidden">
+                      <div className="bg-indigo-600 h-full transition-all duration-500" style={{ width: `${checklistProgress}%` }}></div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {serviceDetails.checklist.map((item, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => toggleChecklist(idx)}
+                          className={`flex items-center space-x-3 p-4 rounded-2xl border transition-all text-left ${completedChecklist[idx] ? 'bg-white border-green-200 shadow-sm' : 'bg-white/50 border-slate-200 hover:border-indigo-200'}`}
+                        >
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${completedChecklist[idx] ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}`}>
+                            {completedChecklist[idx] && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                          </div>
+                          <span className={`text-xs font-bold leading-tight ${completedChecklist[idx] ? 'text-slate-900' : 'text-slate-500'}`}>
+                            {item}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </div>
+
+                  {prediction && (
+                    <div className="bg-slate-950 rounded-[2rem] p-8 text-white space-y-8 animate-in zoom-in duration-500">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-white/10 pb-8">
+                        <div className="space-y-1 text-center md:text-left">
+                          <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-widest">{t.riskPredictor}</h3>
+                          <p className="text-2xl font-black">Success Forecast</p>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <div className="relative w-24 h-24">
+                            <svg className="w-full h-full -rotate-90">
+                              <circle cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/5" />
+                              <circle 
+                                cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="8" fill="transparent" 
+                                className={`${prediction.approvalProbability > 70 ? 'text-green-500' : 'text-amber-500'} transition-all duration-1000`}
+                                strokeDasharray={276}
+                                strokeDashoffset={276 - (276 * prediction.approvalProbability) / 100}
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center font-black text-lg">
+                              {prediction.approvalProbability}%
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                           <h4 className="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center">
+                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                             {t.redFlags}
+                           </h4>
+                           <ul className="space-y-3">
+                              {prediction.redFlags.map((flag, i) => (
+                                <li key={i} className="text-sm text-white/70 flex items-start space-x-2">
+                                   <span className="text-red-500 font-bold">•</span>
+                                   <span>{flag}</span>
+                                </li>
+                              ))}
+                           </ul>
+                        </div>
+                        <div className="space-y-4">
+                           <h4 className="text-xs font-bold text-green-400 uppercase tracking-widest flex items-center">
+                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                             {t.mitigation}
+                           </h4>
+                           <ul className="space-y-3">
+                              {prediction.mitigationSteps.map((step, i) => (
+                                <li key={i} className="text-sm text-white/70 flex items-start space-x-2">
+                                   <span className="text-green-500 font-bold">•</span>
+                                   <span>{step}</span>
+                                </li>
+                              ))}
+                           </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
-              ) : (
-                <p className="text-slate-400 italic">No details available for this service.</p>
-              )}
+              ) : null}
             </div>
 
-            <div className="bg-indigo-900 rounded-[2rem] p-8 text-white relative overflow-hidden group">
-              <div className="relative z-10 space-y-4">
-                <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-500/20 border border-indigo-500/30 rounded-full">
-                   <span className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></span>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Gemini Smart Insight</span>
-                </div>
-                {isLoadingDetails ? (
-                  <div className="h-12 bg-white/5 rounded-xl animate-pulse"></div>
-                ) : (
+            <div className="bg-indigo-900 rounded-[2rem] p-8 text-white relative overflow-hidden">
+               <div className="relative z-10 space-y-4">
+                  <div className="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-500/20 border border-indigo-500/30 rounded-full">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-indigo-200">AI Insight</span>
+                  </div>
                   <p className="text-lg font-medium leading-relaxed italic text-indigo-50">
                     "{serviceDetails?.aiInsight}"
                   </p>
-                )}
-              </div>
-              <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-indigo-500/10 blur-3xl rounded-full"></div>
+               </div>
+               <div className="absolute bottom-[-20%] right-[-10%] w-64 h-64 bg-indigo-400/10 blur-[80px] rounded-full"></div>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
-              <div>
-                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Availability Status</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-700 font-bold">Current Load</span>
-                  <span className="text-green-600 font-black text-xs px-2 py-1 bg-green-50 rounded-lg">NORMAL</span>
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-slate-700 font-bold">Typical Delay</span>
-                  <span className="text-slate-500 text-sm font-medium">{serviceDetails?.processingTime || '...'}</span>
-                </div>
-              </div>
-              <hr className="border-slate-100" />
               <div className="space-y-3">
-                <button className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-600/20 hover:bg-indigo-500 transition-all active:scale-95">
-                  Begin Application
+                <button 
+                  disabled={checklistProgress < 100}
+                  className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-500 disabled:opacity-50 transition-all active:scale-95"
+                >
+                  {t.beginApp}
                 </button>
+                
+                <button 
+                  onClick={handlePredictRisk}
+                  disabled={isPredicting || !serviceDetails}
+                  className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black flex items-center justify-center space-x-2 disabled:opacity-50 hover:bg-slate-800 transition-all"
+                >
+                  {isPredicting ? (
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  ) : t.riskPredictor}
+                </button>
+
                 <button 
                   onClick={() => setActiveTab('assistant')}
                   className="w-full bg-slate-50 text-slate-700 py-4 rounded-2xl font-black border border-slate-200 hover:bg-slate-100 transition-all"
                 >
-                  Ask AI About This
+                  {t.askAi}
                 </button>
               </div>
-            </div>
-
-            <div className="p-6 bg-slate-100 rounded-[2rem] border border-slate-200 space-y-4">
-               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Required Documents</h4>
-               <div className="space-y-2">
-                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center space-x-3">
-                    <span className="text-xl">💳</span>
-                    <span className="text-xs font-bold text-slate-700">National ID Card</span>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center space-x-3">
-                    <span className="text-xl">📄</span>
-                    <span className="text-xs font-bold text-slate-700">Digital Signature (PIN 2)</span>
-                  </div>
-               </div>
             </div>
           </div>
         </div>
@@ -181,131 +270,79 @@ const Home: React.FC<HomeProps> = ({ setActiveTab }) => {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Hero Section */}
-      <div className="relative rounded-[2rem] overflow-hidden bg-slate-900 shadow-2xl shadow-indigo-500/10">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-transparent pointer-events-none"></div>
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent opacity-50 blur-3xl"></div>
-        
-        <div className="relative p-12 lg:p-16 flex flex-col lg:flex-row items-center gap-12">
-          <div className="flex-1 space-y-8 text-center lg:text-left">
-            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-indigo-400 text-xs font-bold uppercase tracking-widest">
-              <span className="flex h-2 w-2 rounded-full bg-indigo-400 animate-pulse"></span>
-              <span>Next Generation Digital State</span>
-            </div>
-            <h1 className="text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tight">
-              Access your digital <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-300">future today.</span>
+      <div className="relative rounded-[2rem] overflow-hidden bg-slate-950 shadow-2xl p-12 lg:p-16 flex flex-col lg:flex-row items-center gap-12">
+          {/* Background Elements */}
+          <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-indigo-600/20 blur-[100px] rounded-full"></div>
+          <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-cyan-600/10 blur-[100px] rounded-full"></div>
+
+          <div className="flex-1 space-y-8 text-center lg:text-left relative z-10">
+            <h1 className="text-5xl lg:text-7xl font-black text-white leading-[1] tracking-tight">
+              {t.welcome.split(' ').slice(0, -1).join(' ')} <br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-300">{t.welcome.split(' ').pop()}</span>
             </h1>
             <p className="text-slate-400 text-lg max-w-xl font-medium leading-relaxed mx-auto lg:mx-0">
-              CivicAI is the world's most advanced citizen interface, powered by Gemini to simplify 
-              bureaucracy into a seamless digital conversation.
+              {t.heroSub}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <button 
                 onClick={() => setActiveTab('assistant')}
-                className="group relative px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all flex items-center justify-center shadow-xl shadow-indigo-600/20"
+                className="group px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-xl active:scale-95"
               >
-                <span>Speak to Assistant</span>
-                <svg className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                {t.speakAssistant}
               </button>
               <button 
                 onClick={() => setActiveTab('explainer')}
-                className="px-8 py-4 bg-slate-800 text-slate-200 border border-slate-700 rounded-2xl font-bold hover:bg-slate-700 transition-all"
+                className="px-8 py-4 bg-slate-800 text-slate-200 border border-slate-700 rounded-2xl font-bold hover:bg-slate-700 transition-all active:scale-95"
               >
-                Simplify a Form
+                {t.simplifyForm}
               </button>
             </div>
           </div>
 
-          <div className="lg:w-1/3 hidden lg:block">
-            <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-cyan-400 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-2xl">
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex space-x-1">
-                    <div className="w-3 h-3 rounded-full bg-slate-800"></div>
-                    <div className="w-3 h-3 rounded-full bg-slate-800"></div>
-                    <div className="w-3 h-3 rounded-full bg-slate-800"></div>
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Security Active</div>
+          <div className="grid grid-cols-2 gap-4 w-full lg:w-auto relative z-10">
+             {govMetrics.map((m, i) => (
+                <div key={i} className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl space-y-1 hover:bg-white/10 transition-colors">
+                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{m.label}</p>
+                   <p className="text-2xl font-black text-white">{m.value}</p>
+                   <p className={`text-[10px] font-bold ${m.trend.startsWith('+') ? 'text-green-400' : m.trend.startsWith('-') ? 'text-blue-400' : 'text-slate-400'}`}>
+                      {m.trend}
+                   </p>
                 </div>
-                <div className="space-y-4">
-                  <div className="h-12 bg-slate-800/50 rounded-xl border border-slate-700/50 animate-pulse"></div>
-                  <div className="h-24 bg-slate-800/50 rounded-xl border border-slate-700/50"></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="h-10 bg-indigo-500/10 rounded-xl border border-indigo-500/20"></div>
-                    <div className="h-10 bg-slate-800/50 rounded-xl border border-slate-700/50"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
+             ))}
           </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Services Grid */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">Public Service Catalog</h2>
-            <button className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors">EXPLORE ALL</button>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">{t.catalog}</h2>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Digital Governance 2.0</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {categories.map((cat, i) => (
-              <div 
-                key={i} 
-                onClick={() => handleServiceClick(cat)}
-                className="group bg-white p-6 rounded-3xl border border-slate-200 hover:border-indigo-200 transition-all hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer relative overflow-hidden"
-              >
-                <div className="flex items-start justify-between relative z-10">
-                  <div className={`w-12 h-12 ${cat.color} rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform`}>
-                    {cat.icon}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-slate-800">{cat.count}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Services</p>
-                  </div>
-                </div>
-                <h3 className="mt-6 text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{cat.title}</h3>
-                <p className="mt-1 text-sm text-slate-500">{cat.description}</p>
-                <div className="absolute bottom-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                </div>
+              <div key={i} onClick={() => handleServiceClick(cat)} className="group bg-white p-6 rounded-3xl border border-slate-200 hover:border-indigo-200 cursor-pointer transition-all hover:shadow-lg">
+                <div className={`w-12 h-12 ${cat.color} rounded-2xl flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform`}>{cat.icon}</div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{cat.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{cat.description}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Sidebar/Updates */}
         <div className="space-y-6">
-          <h2 className="text-xl font-black text-slate-800 tracking-tight">Recent Activity</h2>
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 space-y-6">
-              {recentUpdates.map((update, i) => (
-                <div key={i} className="flex items-start space-x-4 border-l-2 border-slate-100 pl-4 hover:border-indigo-400 transition-colors cursor-pointer group">
-                  <div className="flex-1">
-                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{update.title}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{update.date}</p>
-                  </div>
-                  <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase">
-                    {update.status}
-                  </span>
+          <h2 className="text-xl font-black text-slate-800 tracking-tight">{t.recentActivity}</h2>
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6">
+            {recentUpdates.map((update, i) => (
+              <div key={i} className="flex items-start space-x-4 border-l-2 border-slate-100 pl-4 hover:border-indigo-500 transition-colors cursor-default group">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{update.title}</h4>
+                  <p className="text-xs text-slate-500">{update.date}</p>
                 </div>
-              ))}
-            </div>
-            <button className="w-full bg-slate-50 border-t border-slate-100 p-4 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors">
-              VIEW FULL LOG
+              </div>
+            ))}
+            <button className="w-full py-3 text-xs font-black text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest border-t border-slate-50 pt-4 mt-4">
+              View All History
             </button>
-          </div>
-
-          <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl p-6 text-white shadow-lg shadow-indigo-600/20 relative overflow-hidden group">
-            <div className="relative z-10">
-              <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-[0.2em] mb-2">Did you know?</p>
-              <h4 className="text-lg font-bold mb-3">AI speeds up visa processing by 400%</h4>
-              <p className="text-sm text-indigo-100/80 mb-4 leading-relaxed">Gemini helps our officers categorize requests in real-time, reducing wait times globally.</p>
-              <button className="text-xs font-bold bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition-colors backdrop-blur-md">Learn More</button>
-            </div>
-            <svg className="absolute bottom-[-20%] right-[-10%] w-32 h-32 text-white/5 group-hover:scale-125 transition-transform" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
           </div>
         </div>
       </div>

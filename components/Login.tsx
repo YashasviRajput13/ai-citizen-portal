@@ -1,49 +1,23 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { translations } from '../translations';
 
+// Fix: Updated LoginProps to include language prop as required by App.tsx to resolve the assignment error
 interface LoginProps {
   onLogin: () => void;
+  language: string;
 }
 
-// Fixed global declaration to match environment's AIStudio type and modifiers
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    readonly aistudio: AIStudio;
-  }
-}
-
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, language }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<'smart' | 'mobile' | 'id'>('smart');
-  const [hasApiKey, setHasApiKey] = useState(true);
-
-  useEffect(() => {
-    const checkApiKey = async () => {
-      if (window.aistudio) {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setHasApiKey(selected);
-      }
-    };
-    checkApiKey();
-  }, []);
-
-  const handleConnectCloud = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      setHasApiKey(true);
-    }
-  };
+  
+  // Fix: Utilize translations based on the passed language prop
+  const t = translations[language];
 
   const handleLoginClick = () => {
-    if (!hasApiKey && window.aistudio) {
-      handleConnectCloud();
-      return;
-    }
     setIsVerifying(true);
+    // Simulate a secure handshake with the identity provider
     setTimeout(() => {
       onLogin();
     }, 2000);
@@ -57,12 +31,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 font-sans relative overflow-hidden">
+      {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
       </div>
 
       <div className="w-full max-w-[1000px] grid grid-cols-1 lg:grid-cols-2 bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-800 relative z-10">
+        {/* Left Side: Brand & Info */}
         <div className="p-12 lg:p-16 flex flex-col bg-gradient-to-br from-indigo-600 to-slate-900 text-white">
           <div className="flex items-center space-x-3 mb-16">
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-xl">
@@ -105,27 +81,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
         </div>
 
+        {/* Right Side: Authentication */}
         <div className="p-12 lg:p-16 bg-slate-900 flex flex-col justify-center">
-          {!hasApiKey && window.aistudio ? (
-            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-center">
-              <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto text-3xl">🔑</div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black text-white">Cloud API Connection Required</h2>
-                <p className="text-slate-400 text-sm">To enable AI features, please select a paid API key from your console.</p>
-              </div>
-              <div className="space-y-4">
-                <button
-                  onClick={handleConnectCloud}
-                  className="w-full bg-amber-600 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-amber-600/20 hover:bg-amber-500 transition-all"
-                >
-                  Connect API Key
-                </button>
-                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-indigo-400 transition-colors">
-                  View Billing Documentation
-                </a>
-              </div>
-            </div>
-          ) : isVerifying ? (
+          {isVerifying ? (
             <div className="flex flex-col items-center justify-center space-y-8 animate-in fade-in zoom-in-95 duration-500">
               <div className="relative">
                 <div className="w-24 h-24 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -169,7 +127,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Personal Identity Number</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">{t.idNum}</label>
                   <input 
                     type="text" 
                     placeholder="e.g. 38001010001" 
@@ -182,7 +140,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   onClick={handleLoginClick}
                   className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black text-lg shadow-xl shadow-indigo-600/20 hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
-                  Authenticate
+                  {t.authenticate}
                 </button>
               </div>
 
