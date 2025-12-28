@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Home from './components/Home';
 import ChatInterface from './components/ChatInterface';
@@ -11,6 +11,19 @@ import { Tab } from './types';
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<Tab>('home');
+
+  // Error boundary effect for API failures
+  useEffect(() => {
+    const handleGlobalError = async (event: PromiseRejectionEvent) => {
+      if (event.reason?.message === "API_KEY_INVALID" && window.aistudio) {
+        console.warn("API Key invalid, requesting re-selection");
+        await window.aistudio.openSelectKey();
+        window.location.reload();
+      }
+    };
+    window.addEventListener("unhandledrejection", handleGlobalError);
+    return () => window.removeEventListener("unhandledrejection", handleGlobalError);
+  }, []);
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -50,12 +63,12 @@ const App: React.FC = () => {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className="flex-1 ml-72">
-        <header className="px-10 py-8 flex justify-between items-center sticky top-0 bg-slate-50/80 backdrop-blur-xl z-40">
+        <header className="px-10 py-8 flex justify-between items-center sticky top-0 bg-slate-50/80 backdrop-blur-xl z-40 border-b border-slate-100">
           <div>
             <div className="flex items-center space-x-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">
                <span className="text-indigo-500">Official</span>
                <span>•</span>
-               <span>Encrypted Session</span>
+               <span className="text-green-500">Verified Identity</span>
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">{getPageTitle()}</h1>
           </div>
@@ -66,7 +79,7 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs font-black text-slate-800 leading-none">Peterson, Sven</p>
-                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">EST-RES-88410</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">CIV-RES-88410</p>
                 </div>
             </div>
             <button 
@@ -79,7 +92,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="px-10 max-w-7xl mx-auto">
+        <div className="px-10 max-w-7xl mx-auto py-8">
           {renderContent()}
         </div>
       </main>
