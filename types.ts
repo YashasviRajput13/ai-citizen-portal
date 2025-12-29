@@ -1,11 +1,21 @@
 
-export type Tab = 'home' | 'assistant' | 'explainer' | 'admin' | 'formFiller';
+export type Tab = 'home' | 'assistant' | 'explainer' | 'admin' | 'formFiller' | 'profile';
 
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+export interface UserProfile {
+  fullName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  state?: string;
+  district?: string;
+  aadhaarMasked?: string;
+  hasDocument?: boolean;
 }
 
 export interface ClassificationResult {

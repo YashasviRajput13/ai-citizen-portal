@@ -6,6 +6,7 @@ import ChatInterface from './components/ChatInterface';
 import FormAnalyzer from './components/FormAnalyzer';
 import AdminDashboard from './components/AdminDashboard';
 import SmartFormFiller from './components/SmartFormFiller';
+import IdentityProfile from './components/IdentityProfile';
 import Login from './components/Login';
 import { Tab } from './types';
 import { translations } from './translations';
@@ -33,6 +34,7 @@ const App: React.FC = () => {
       case 'assistant': return <ChatInterface language={language} />;
       case 'explainer': return <FormAnalyzer language={language} />;
       case 'formFiller': return <SmartFormFiller language={language} />;
+      case 'profile': return <IdentityProfile language={language} />;
       case 'admin': return <AdminDashboard language={language} />;
       default: return <Home setActiveTab={setActiveTab} language={language} />;
     }
@@ -44,6 +46,7 @@ const App: React.FC = () => {
       case 'assistant': return t.assistantTitle;
       case 'explainer': return t.explainerTitle;
       case 'formFiller': return t.formFillerTitle;
+      case 'profile': return t.profileTitle;
       case 'admin': return t.adminTitle;
       default: return 'CivicAI';
     }
@@ -103,7 +106,10 @@ const App: React.FC = () => {
               )}
             </div>
 
-            <div className="flex items-center space-x-3 bg-white px-5 py-2.5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow">
+            <div 
+              onClick={() => setActiveTab('profile')}
+              className="flex items-center space-x-3 bg-white px-5 py-2.5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            >
                 <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-xs">
                   ID
                 </div>
